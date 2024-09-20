@@ -1,0 +1,656 @@
+------------------------------------------------
+-- Tabla Tienda
+CREATE TABLE Tienda (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    ubicacion VARCHAR(150) NOT NULL,
+    horario VARCHAR(100) NOT NULL
+);
+
+-- Tabla Producto
+CREATE TABLE Producto (
+    UPC INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    marca VARCHAR(50) NOT NULL,
+    tipo VARCHAR(50) NOT NULL,
+    precio DECIMAL(10, 2) NOT NULL,
+    cantidad INT NOT NULL,
+    tamaño VARCHAR(50),
+    embalaje VARCHAR(50)
+);
+
+CREATE TABLE `Cliente` (
+	`id` INT(11) NOT NULL AUTO_INCREMENT,
+	`nombre` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`correo` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`usuario` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`contrasena` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`rol` VARCHAR(20) NULL DEFAULT 'cliente' COLLATE 'latin1_swedish_ci',
+	PRIMARY KEY (`id`) USING BTREE
+)
+
+CREATE TABLE `Vendedor` (
+	`id` INT(11) NOT NULL AUTO_INCREMENT,
+	`nombre` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`usuario` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`contrasena` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`rol` VARCHAR(20) NULL DEFAULT 'vendedor' COLLATE 'latin1_swedish_ci',
+	PRIMARY KEY (`id`) USING BTREE
+)
+
+-- Tabla Factura
+CREATE TABLE Factura (
+    numero INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_id INT NOT NULL,
+    fecha DATE NOT NULL,
+    subtotal DECIMAL(10, 2) NOT NULL,
+    isv DECIMAL(10, 2) NOT NULL,
+    total DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (cliente_id) REFERENCES Cliente(id)
+);
+
+-- Tabla DetalleFactura
+CREATE TABLE DetalleFactura (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    factura_numero INT NOT NULL,
+    producto_upc INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (factura_numero) REFERENCES Factura(numero),
+    FOREIGN KEY (producto_upc) REFERENCES Producto(UPC)
+);
+
+CREATE TABLE Tienda_Producto (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tienda_id INT NOT NULL,
+    producto_upc INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (tienda_id) REFERENCES Tienda(id),
+    FOREIGN KEY (producto_upc) REFERENCES Producto(UPC)
+);
+
+CREATE TABLE Tienda_Vendedor (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tienda_id INT NOT NULL,
+    vendedor_id INT NOT NULL,
+    FOREIGN KEY (tienda_id) REFERENCES Tienda(id),
+    FOREIGN KEY (vendedor_id) REFERENCES Vendedor(id)
+);
+
+CREATE TABLE Factura_Vendedor (
+    factura_numero INT,
+    vendedor_id INT,
+    FOREIGN KEY (factura_numero) REFERENCES Factura(numero),
+    FOREIGN KEY (vendedor_id) REFERENCES Vendedor(id)
+);
+
+
+CREATE TABLE Bitacora (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tabla VARCHAR(100),
+    operacion VARCHAR(50),
+    registro_id INT,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE `Usuarios` (
+	`id` INT(11) NOT NULL AUTO_INCREMENT,
+	`nombre_usuario` VARCHAR(50) NOT NULL COLLATE 'latin1_swedish_ci',
+	`contrasena` VARCHAR(100) NOT NULL COLLATE 'latin1_swedish_ci',
+	`rol` ENUM('Administrador','Vendedor','Cliente') NOT NULL COLLATE 'latin1_swedish_ci',
+	`cliente_id` INT(11) NULL DEFAULT NULL,
+	`vendedor_id` INT(11) NULL DEFAULT NULL,
+	PRIMARY KEY (`id`) USING BTREE,
+	UNIQUE INDEX `nombre_usuario` (`nombre_usuario`) USING BTREE,
+	INDEX `cliente_id` (`cliente_id`) USING BTREE,
+	INDEX `vendedor_id` (`vendedor_id`) USING BTREE,
+	CONSTRAINT `Usuarios_ibfk_1` FOREIGN KEY (`cliente_id`) REFERENCES `Cliente` (`id`) ON UPDATE RESTRICT ON DELETE CASCADE,
+	CONSTRAINT `Usuarios_ibfk_2` FOREIGN KEY (`vendedor_id`) REFERENCES `Vendedor` (`id`) ON UPDATE RESTRICT ON DELETE CASCADE
+)
+------------------------------------------------------------------------------
+
+DELIMITER $$
+
+-- Crear una nueva Tienda (sin SIGNAL, ajustado)
+CREATE PROCEDURE CrearTienda(IN id INT, IN nombre VARCHAR(100), IN ubicacion VARCHAR(150), IN horario VARCHAR(100))
+BEGIN
+    IF id IS NOT NULL AND nombre IS NOT NULL AND ubicacion IS NOT NULL AND horario IS NOT NULL THEN
+        INSERT INTO Tienda (id, nombre, ubicacion, horario) VALUES (id, nombre, ubicacion, horario);
+    END IF;
+END $$
+
+-- Modificar una Tienda existente
+CREATE PROCEDURE ModificarTienda(IN id INT, IN nombre VARCHAR(100), IN ubicacion VARCHAR(150), IN horario VARCHAR(100))
+BEGIN
+    IF id IS NOT NULL AND nombre IS NOT NULL AND ubicacion IS NOT NULL AND horario IS NOT NULL THEN
+        UPDATE Tienda SET nombre = nombre, ubicacion = ubicacion, horario = horario WHERE id = id;
+    END IF;
+END $$
+
+-- Eliminar una Tienda
+CREATE PROCEDURE EliminarTienda(IN id INT)
+BEGIN
+    IF id IS NOT NULL THEN
+        DELETE FROM Tienda WHERE id = id;
+    END IF;
+END $$
+
+DELIMITER ;
+
+--------------------------------------------------------------------------------
+DELIMITER $$
+
+-- Crear un nuevo Producto
+CREATE PROCEDURE CrearProducto(IN nombre VARCHAR(100), IN marca VARCHAR(50), IN tipo VARCHAR(50), IN precio DECIMAL(10,2), IN cantidad INT, IN tamaño VARCHAR(50), IN embalaje VARCHAR(50))
+BEGIN
+    IF nombre IS NOT NULL AND marca IS NOT NULL AND tipo IS NOT NULL AND precio IS NOT NULL AND cantidad IS NOT NULL THEN
+        INSERT INTO Producto (nombre, marca, tipo, precio, cantidad, tamaño, embalaje) VALUES (nombre, marca, tipo, precio, cantidad, tamaño, embalaje);
+    END IF;
+END $$
+
+-- Modificar un Producto existente
+CREATE PROCEDURE ModificarProducto(IN UPC INT, IN nombre VARCHAR(100), IN marca VARCHAR(50), IN tipo VARCHAR(50), IN precio DECIMAL(10,2), IN cantidad INT, IN tamaño VARCHAR(50), IN embalaje VARCHAR(50))
+BEGIN
+    IF UPC IS NOT NULL AND nombre IS NOT NULL AND marca IS NOT NULL AND tipo IS NOT NULL AND precio IS NOT NULL AND cantidad IS NOT NULL THEN
+        UPDATE Producto SET nombre = nombre, marca = marca, tipo = tipo, precio = precio, cantidad = cantidad, tamaño = tamaño, embalaje = embalaje WHERE UPC = UPC;
+    END IF;
+END $$
+
+-- Eliminar un Producto
+CREATE PROCEDURE EliminarProducto(IN UPC INT)
+BEGIN
+    IF UPC IS NOT NULL THEN
+        DELETE FROM Producto WHERE UPC = UPC;
+    END IF;
+END $$
+
+DELIMITER ;
+------------------------------------------------------------------------------
+DELIMITER $$
+
+-- Crear un nuevo Cliente con id, usuario, contraseña y rol
+CREATE PROCEDURE CrearCliente(
+    IN id INT,
+    IN nombre VARCHAR(100),
+    IN correo VARCHAR(100),
+    IN usuario VARCHAR(50),
+    IN contrasena VARCHAR(100),
+    IN rol VARCHAR(20)
+)
+BEGIN
+    IF id IS NOT NULL AND nombre IS NOT NULL AND correo IS NOT NULL AND usuario IS NOT NULL AND contrasena IS NOT NULL AND rol IS NOT NULL THEN
+        INSERT INTO Cliente (id, nombre, correo, usuario, contrasena, rol) 
+        VALUES (id, nombre, correo, usuario, contrasena, rol);
+    END IF;
+END $$
+
+CREATE PROCEDURE ModificarCliente(
+    IN p_id INT,
+    IN p_nombre VARCHAR(100),
+    IN p_correo VARCHAR(100),
+    IN p_usuario VARCHAR(50),
+    IN p_contrasena VARCHAR(100),
+    IN p_rol VARCHAR(20)
+)
+BEGIN
+    -- Asegurarse de que el ID no sea NULL y modificar solo el registro con ese ID
+    IF p_id IS NOT NULL THEN
+        UPDATE Cliente
+        SET nombre = p_nombre,
+            correo = p_correo,
+            usuario = p_usuario,
+            contrasena = p_contrasena,
+            rol = p_rol
+        WHERE id = p_id; -- Aquí especificas que solo se actualice el registro con el ID dado
+    END IF;
+END $$
+
+-- Eliminar un Cliente
+CREATE PROCEDURE EliminarCliente(IN id INT)
+BEGIN
+    IF id IS NOT NULL THEN
+        DELETE FROM Cliente WHERE id = id;
+    END IF;
+END $$
+
+DELIMITER ;
+
+------------------------------------------------------------------------------
+DELIMITER $$
+
+-- Crear un nuevo Vendedor con id, usuario, contraseña y rol
+CREATE PROCEDURE CrearVendedor(
+    IN id INT,
+    IN nombre VARCHAR(100),
+    IN usuario VARCHAR(50),
+    IN contrasena VARCHAR(100),
+    IN rol VARCHAR(20)
+)
+BEGIN
+    IF id IS NOT NULL AND nombre IS NOT NULL AND usuario IS NOT NULL AND contrasena IS NOT NULL AND rol IS NOT NULL THEN
+        INSERT INTO Vendedor (id, nombre, usuario, contrasena, rol) 
+        VALUES (id, nombre, usuario, contrasena, rol);
+    END IF;
+END $$
+
+-- Modificar un Vendedor existente
+CREATE PROCEDURE ModificarVendedor(
+    IN pid INT,
+    IN pnombre VARCHAR(100),
+    IN pusuario VARCHAR(50),
+    IN pcontrasena VARCHAR(100),
+    IN prol VARCHAR(20)
+)
+BEGIN
+    IF pid IS NOT NULL THEN
+        UPDATE Vendedor 
+         SET nombre = pnombre,
+            usuario = pusuario,
+            contrasena = pcontrasena,
+            rol = prol
+        WHERE id = pid;
+    END IF;
+END $$
+
+-- Eliminar un Vendedor
+CREATE PROCEDURE EliminarVendedor(IN id INT)
+BEGIN
+    IF id IS NOT NULL THEN
+        DELETE FROM Vendedor WHERE id = id;
+    END IF;
+END $$
+
+DELIMITER ;
+
+
+---------------------------------------------------------------------------------------
+DELIMITER $$
+CREATE PROCEDURE VerProductosPorTienda(IN tienda_id INT)
+BEGIN
+    SELECT 
+        p.nombre AS producto,
+        p.marca,
+        p.tipo,
+        tp.precio,
+        tp.cantidad,
+        p.tamaño,
+        p.embalaje
+    FROM 
+        Tienda_Producto tp
+    JOIN 
+        Producto p ON tp.producto_upc = p.UPC
+    WHERE 
+        tp.tienda_id = tienda_id;
+END$$
+DELIMITER ;
+
+
+----------------------------------------------------------------------------------------
+
+DELIMITER $$
+
+CREATE PROCEDURE MostrarReciboFactura(IN facturaNumero INT)
+BEGIN
+    -- Información de la factura y el cliente
+    SELECT 
+        f.numero AS 'Número de Factura',
+        c.nombre AS 'Cliente',
+        f.fecha AS 'Fecha',
+        f.subtotal AS 'Subtotal',
+        f.isv AS 'Impuesto',
+        f.total AS 'Total'
+    FROM Factura f
+    JOIN Cliente c ON f.cliente_id = c.id
+    WHERE f.numero = facturaNumero;
+
+    -- Detalle de los productos en la factura
+    SELECT 
+        p.nombre AS 'Producto',
+        df.cantidad AS 'Cantidad',
+        df.precio AS 'Precio Unitario',
+        (df.cantidad * df.precio) AS 'Total Producto'
+    FROM DetalleFactura df
+    JOIN Producto p ON df.producto_upc = p.UPC
+    WHERE df.factura_numero = facturaNumero;
+
+END $$
+
+DELIMITER ;
+//////////////////////////////////////////////////////////////////
+DELIMITER $$
+
+CREATE PROCEDURE ActualizarUsuario(IN usuario_id INT, IN nuevo_usuario VARCHAR(50), IN nueva_contrasena VARCHAR(100))
+BEGIN
+    UPDATE Usuarios 
+    SET nombre_usuario = IFNULL(nuevo_usuario, nombre_usuario), 
+        contrasena = IFNULL(nueva_contrasena, contrasena)
+    WHERE id = usuario_id;
+END $$
+
+DELIMITER ;
+
+----------------------------------------------------------------------------------
+CREATE DEFINER=`admin`@`%` PROCEDURE `RegistrarCompra`(
+	IN `cliente_id` INT,
+	IN `tienda_id` INT,
+	IN `producto_upc` INT,
+	IN `vendedor_id` INT,
+	IN `cantidad_comprada` INT
+)
+LANGUAGE SQL
+NOT DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+    -- Todas las variables deben declararse al inicio
+    DECLARE subtotal DECIMAL(10, 2);
+    DECLARE isv DECIMAL(10, 2);
+    DECLARE total DECIMAL(10, 2);
+    DECLARE precio_unitario DECIMAL(10, 2);
+    DECLARE nuevo_numero_factura INT;
+
+    -- Obtener el precio del producto en la tienda
+    SELECT tp.precio INTO precio_unitario
+    FROM Tienda_Producto tp
+    WHERE tp.producto_upc = producto_upc AND tp.tienda_id = tienda_id;
+
+    -- Calcular los montos de la factura
+    SET subtotal = precio_unitario * cantidad_comprada;
+    SET isv = subtotal * 0.15;  -- Impuesto sobre ventas del 15%
+    SET total = subtotal + isv;
+
+    -- Insertar la nueva factura
+    INSERT INTO Factura (cliente_id, fecha, subtotal, isv, total)
+    VALUES (cliente_id, CURDATE(), subtotal, isv, total);
+
+    -- Obtener el número de factura recién creado
+    SET nuevo_numero_factura = LAST_INSERT_ID();
+
+    -- Insertar el detalle de la factura
+    INSERT INTO DetalleFactura (factura_numero, producto_upc, cantidad, precio)
+    VALUES (nuevo_numero_factura, producto_upc, cantidad_comprada, precio_unitario);
+
+    -- Registrar el vendedor en la factura
+    INSERT INTO Factura_Vendedor (factura_numero, vendedor_id)
+    VALUES (nuevo_numero_factura, vendedor_id);
+    
+    -- Actualizar la cantidad del producto en la tienda
+    UPDATE Tienda_Producto
+    SET cantidad = cantidad - cantidad_comprada
+    WHERE tienda_id = tienda_id AND producto_upc = producto_upc;
+END
+
+
+
+----------------------------------------------------------------------------------
+
+DELIMITER $$
+
+-- Disparador para INSERT en Tienda
+CREATE TRIGGER after_insert_tienda
+AFTER INSERT ON Tienda
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) VALUES ('Tienda', 'INSERT', NEW.id);
+END $$
+
+-- Disparador para UPDATE en Tienda
+CREATE TRIGGER after_update_tienda
+AFTER UPDATE ON Tienda
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) VALUES ('Tienda', 'UPDATE', OLD.id);
+END $$
+
+-- Disparador para DELETE en Tienda
+CREATE TRIGGER after_delete_tienda
+AFTER DELETE ON Tienda
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) VALUES ('Tienda', 'DELETE', OLD.id);
+END $$
+
+DELIMITER ;
+_______________________________________________________________________________________
+DELIMITER $$
+
+-- Disparador para INSERT en Cliente
+CREATE TRIGGER after_insert_cliente
+AFTER INSERT ON Cliente
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) 
+    VALUES ('Cliente', 'INSERT', NEW.id);
+END $$
+
+-- Disparador para UPDATE en Cliente
+CREATE TRIGGER after_update_cliente
+AFTER UPDATE ON Cliente
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) 
+    VALUES ('Cliente', 'UPDATE', OLD.id);
+END $$
+
+-- Disparador para DELETE en Cliente
+CREATE TRIGGER after_delete_cliente
+AFTER DELETE ON Cliente
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) 
+    VALUES ('Cliente', 'DELETE', OLD.id);
+END $$
+
+DELIMITER ;
+
+_____________________________________________________________________________________________________
+DELIMITER $$
+
+-- Disparador para INSERT en Vendedor
+CREATE TRIGGER after_insert_vendedor
+AFTER INSERT ON Vendedor
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) 
+    VALUES ('Vendedor', 'INSERT', NEW.id);
+END $$
+
+-- Disparador para UPDATE en Vendedor
+CREATE TRIGGER after_update_vendedor
+AFTER UPDATE ON Vendedor
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) 
+    VALUES ('Vendedor', 'UPDATE', OLD.id);
+END $$
+
+-- Disparador para DELETE en Vendedor
+CREATE TRIGGER after_delete_vendedor
+AFTER DELETE ON Vendedor
+FOR EACH ROW
+BEGINBitacora
+    INSERT INTO Bitacora (tabla, operacion, registro_id) 
+    VALUES ('Vendedor', 'DELETE', OLD.id);
+END $$
+
+DELIMITER ;
+
+---------------------------------------------------------------------------------------------------
+DELIMITER $$
+
+-- Disparador para INSERT en Producto
+CREATE TRIGGER after_insert_producto
+AFTER INSERT ON Producto
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) VALUES ('Producto', 'INSERT', NEW.UPC);
+END $$
+
+-- Disparador para UPDATE en Producto
+CREATE TRIGGER after_update_producto
+AFTER UPDATE ON Producto
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) VALUES ('Producto', 'UPDATE', OLD.UPC);
+END $$
+
+-- Disparador para DELETE en Producto
+CREATE TRIGGER after_delete_producto
+AFTER DELETE ON Producto
+FOR EACH ROW
+BEGIN
+    INSERT INTO Bitacora (tabla, operacion, registro_id) VALUES ('Producto', 'DELETE', OLD.UPC);
+END $$
+
+DELIMITER ;
+//////////////////??//////////////////////////
+
+DELIMITER $$
+
+CREATE TRIGGER user_insert_cliente
+AFTER INSERT ON Cliente
+FOR EACH ROW
+BEGIN
+    INSERT INTO Usuarios (nombre_usuario, contrasena, rol, cliente_id)
+    VALUES (NEW.nombre, 'default_password', 'Cliente', NEW.id);
+END $$
+
+DELIMITER ;
+////////////////////////////////////////////////////////
+DELIMITER $$
+
+CREATE TRIGGER user_insert_vendedor
+AFTER INSERT ON Vendedor
+FOR EACH ROW
+BEGIN
+    INSERT INTO Usuarios (nombre_usuario, contrasena, rol, vendedor_id)
+    VALUES (NEW.nombre, 'default_password', 'Vendedor', NEW.id);
+END $$
+
+DELIMITER ;
+//////////////////////////////////////////////////////////
+
+------------------------------------------------------------------------------------------------
+--------Vista---------------
+
+CREATE VIEW vista_inventario_productos AS
+SELECT t.nombre AS tienda, p.nombre AS producto, p.marca, p.tipo, p.precio, p.cantidad
+FROM Tienda t
+JOIN Producto p
+ORDER BY t.nombre, p.nombre;
+
+
+--------------------------------
+CREATE VIEW vista_compras_cliente AS
+SELECT c.nombre AS cliente, f.numero AS factura_numero, f.fecha, df.cantidad, p.nombre AS producto, df.precio, f.subtotal, f.isv, f.total
+FROM Cliente c
+JOIN Factura f ON c.id = f.cliente_id
+JOIN DetalleFactura df ON f.numero = df.factura_numero
+JOIN Producto p ON df.producto_upc = p.UPC
+ORDER BY c.nombre, f.fecha;
+--------------------------------------------------
+
+CREATE OR REPLACE VIEW vista_productos_tienda AS
+SELECT 
+    tp.tienda_id, 
+    t.nombre AS tienda_nombre, 
+    p.nombre AS producto_nombre, 
+    p.marca, 
+    p.tipo, 
+    tp.precio, 
+    tp.cantidad, 
+    p.tamaño, 
+    p.embalaje
+FROM 
+    Tienda_Producto tp
+JOIN 
+    Tienda t ON tp.tienda_id = t.id
+JOIN 
+    Producto p ON tp.producto_upc = p.UPC;
+
+
+-----------------------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW HistorialVentasTienda AS
+SELECT 
+    t.id AS tienda_id,
+    t.nombre AS nombre_tienda,
+    f.numero AS numero_factura,
+    f.fecha AS fecha_venta,
+    c.nombre AS cliente,
+    f.total AS total_venta
+FROM Tienda t
+JOIN Tienda_Producto tp ON t.id = tp.tienda_id
+JOIN DetalleFactura df ON tp.producto_upc = df.producto_upc
+JOIN Factura f ON df.factura_numero = f.numero
+JOIN Cliente c ON f.cliente_id = c.id;
+
+----------------------------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW ProductosMasVendidosTienda AS
+SELECT 
+    t.id AS tienda_id,
+    t.nombre AS nombre_tienda,
+    p.nombre AS producto,
+    SUM(df.cantidad) AS total_vendido
+FROM Tienda t
+JOIN Tienda_Producto tp ON t.id = tp.tienda_id
+JOIN Producto p ON tp.producto_upc = p.UPC
+JOIN DetalleFactura df ON p.UPC = df.producto_upc
+GROUP BY t.id, p.UPC
+ORDER BY t.id, total_vendido DESC
+LIMIT 20;
+----------------------------------------------------------------
+CREATE OR REPLACE VIEW ProductosMasVendidosPais AS
+SELECT 
+    t.pais AS pais,        -- Aquí usamos la columna 'pais' en lugar de 'ubicacion'
+    p.nombre AS producto,
+    SUM(df.cantidad) AS total_vendido
+FROM Tienda t
+JOIN Tienda_Producto tp ON t.id = tp.tienda_id
+JOIN Producto p ON tp.producto_upc = p.UPC
+JOIN DetalleFactura df ON p.UPC = df.producto_upc
+GROUP BY t.pais, p.UPC
+ORDER BY t.pais, total_vendido DESC
+LIMIT 20;
+-------------------------------------------------------------
+CREATE OR REPLACE VIEW TiendasMasVentasAnio AS
+SELECT 
+    t.id AS tienda_id,
+    t.nombre AS nombre_tienda,
+    SUM(f.total) AS total_vendido
+FROM Tienda t
+JOIN Tienda_Producto tp ON t.id = tp.tienda_id
+JOIN DetalleFactura df ON tp.producto_upc = df.producto_upc
+JOIN Factura f ON df.factura_numero = f.numero
+WHERE YEAR(f.fecha) = YEAR(CURDATE())
+GROUP BY t.id
+ORDER BY total_vendido DESC
+LIMIT 5;
+-----------------------------------------------------------------
+CREATE OR REPLACE VIEW TiendasCocaColaVsPepsi AS
+SELECT 
+    t.id AS tienda_id,
+    t.nombre AS nombre_tienda,
+    SUM(CASE WHEN p.nombre = 'Coca-Cola' THEN df.cantidad ELSE 0 END) AS coca_cola_vendida,
+    SUM(CASE WHEN p.nombre = 'Pepsi' THEN df.cantidad ELSE 0 END) AS pepsi_vendida
+FROM Tienda t
+JOIN Tienda_Producto tp ON t.id = tp.tienda_id
+JOIN Producto p ON tp.producto_upc = p.UPC
+JOIN DetalleFactura df ON p.UPC = df.producto_upc
+GROUP BY t.id
+HAVING coca_cola_vendida > pepsi_vendida;
+----------------------------------------------------------------------
+CREATE OR REPLACE VIEW ProductosMasCompradosSinLeche AS
+SELECT 
+    p.tipo AS tipo_producto,
+    SUM(df.cantidad) AS total_vendido
+FROM Producto p
+JOIN DetalleFactura df ON p.UPC = df.producto_upc
+WHERE p.tipo != 'Leche'
+GROUP BY p.tipo
+ORDER BY total_vendido DESC
+LIMIT 3;
+
